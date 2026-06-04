@@ -55,6 +55,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { loginApi } from '@/api/auth'
 import { useUserStore } from '@/store/user'
+import { sm3 } from 'sm-crypto'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -99,7 +100,7 @@ async function handleLogin() {
   loginError.value = ''
   try {
     // 前端使用 SM3 对密码进行摘要处理
-    const passwdHash = await sm3(form.passwd)
+    const passwdHash = sm3(form.passwd)
     const res = await loginApi({ account: form.account, passwd: passwdHash })
     const data = (res as any).data
     userStore.setToken(data.token)
@@ -122,14 +123,6 @@ async function handleLogin() {
   }
 }
 
-// SM3 哈希（简易实现，生产环境建议使用 sm-crypto 库）
-async function sm3(input: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(input)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
 </script>
 
 <style scoped>
