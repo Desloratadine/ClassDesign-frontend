@@ -37,7 +37,7 @@
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
         </el-form-item>
         <el-form-item label="权限值" prop="privileges">
-          <el-input-number v-model="form.privileges" :min="0" :max="99999" style="width: 100%" />
+          <el-input v-model="form.privileges" placeholder="请输入权限值，如 doc:receive doc:download" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -68,7 +68,7 @@ const total = ref(0)
 const form = reactive({
   roleId: '',
   roleName: '',
-  privileges: 0 as number,
+  privileges: '',
 })
 
 const rules: FormRules = {
@@ -93,7 +93,7 @@ function openAdd() {
   isEdit.value = false
   form.roleId = ''
   form.roleName = ''
-  form.privileges = 0
+  form.privileges = ''
   dialogVisible.value = true
 }
 
@@ -101,7 +101,7 @@ function openEdit(row: Role) {
   isEdit.value = true
   form.roleId = row.roleId
   form.roleName = row.roleName
-  form.privileges = Number(row.privileges) || 0
+  form.privileges = row.privileges || ''
   dialogVisible.value = true
 }
 

@@ -61,12 +61,12 @@
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" placeholder="请输入用户名" />
         </el-form-item>
-        <el-form-item label="密码" :prop="isEdit ? '' : 'passwd'">
+        <el-form-item label="密码" prop="passwd">
           <el-input
             v-model="form.passwd"
             type="password"
             show-password
-            :placeholder="isEdit ? '留空则不修改密码' : '请输入密码'"
+            placeholder="请输入密码"
           />
         </el-form-item>
         <el-form-item label="部门" prop="dept">
@@ -129,18 +129,7 @@ const form = reactive({
 
 const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  passwd: [
-    {
-      validator: (_rule, _value, callback) => {
-        if (!isEdit.value && !form.passwd) {
-          callback(new Error('请输入密码'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur',
-    },
-  ],
+  passwd: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   role: [{ required: true, message: '请选择角色', trigger: 'change' }],
   dept: [{ required: true, message: '请选择部门', trigger: 'change' }],
   security: [{ required: true, message: '请选择密级', trigger: 'change' }],
@@ -194,11 +183,11 @@ function openAdd() {
 function openEdit(row: AdminUser) {
   isEdit.value = true
   form.account = row.account
-  form.username = row.username
+  form.username = ''
   form.passwd = ''
-  form.role = row.role
-  form.dept = row.dept
-  form.security = row.security
+  form.role = ''
+  form.dept = ''
+  form.security = null
   dialogVisible.value = true
 }
 
@@ -207,12 +196,11 @@ async function handleSubmit() {
   if (!valid) return
   submitting.value = true
   try {
-    const passwd = form.passwd ? sm3Hash(form.passwd) : ''
     if (isEdit.value) {
       await updateUser({
         account: form.account,
         username: form.username,
-        passwd,
+        passwd: sm3Hash(form.passwd),
         role: form.role,
         dept: form.dept,
         security: form.security ?? 0,

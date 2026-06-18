@@ -45,7 +45,7 @@ export async function getRoles(params: {
   return res.data.data
 }
 
-export async function addRole(data: { roleName: string; privileges: number }): Promise<boolean> {
+export async function addRole(data: { roleName: string; privileges: string }): Promise<boolean> {
   const res = await apiClient.post<ApiResponse<{ add: boolean }>>('/admin/roles/add', data)
   return res.data.data.add
 }
@@ -53,7 +53,7 @@ export async function addRole(data: { roleName: string; privileges: number }): P
 export async function updateRole(data: {
   roleId: string
   roleName: string
-  privileges: number
+  privileges: string
 }): Promise<boolean> {
   const res = await apiClient.post<ApiResponse<{ update: boolean }>>('/admin/roles/update', data)
   return res.data.data.update

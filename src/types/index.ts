@@ -56,7 +56,7 @@ export interface Dept {
 export interface Role {
   roleId: string
   roleName: string
-  privileges?: number
+  privileges?: string
 }
 
 /** 密级 */
