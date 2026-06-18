@@ -17,29 +17,29 @@
           <el-icon><HomeFilled /></el-icon>
           <span>首页</span>
         </el-menu-item>
-        <el-menu-item index="/upload">
+        <el-menu-item v-if="authStore.hasPrivilege('file:upload')" index="/upload">
           <el-icon><Upload /></el-icon>
           <span>文档上传</span>
         </el-menu-item>
-        <el-menu-item index="/sent">
+        <el-menu-item v-if="authStore.hasPrivilege('transfer:read')" index="/sent">
           <el-icon><Promotion /></el-icon>
           <span>已发送</span>
         </el-menu-item>
-        <el-menu-item index="/inbox">
+        <el-menu-item v-if="authStore.hasPrivilege('doc:receive')" index="/inbox">
           <el-icon><Message /></el-icon>
           <span>收件箱</span>
         </el-menu-item>
 
-        <el-sub-menu v-if="authStore.isAdmin()" index="admin">
+        <el-sub-menu v-if="hasAdminAccess" index="admin">
           <template #title>
             <el-icon><Setting /></el-icon>
             <span>管理后台</span>
           </template>
-          <el-menu-item index="/admin/users">用户管理</el-menu-item>
-          <el-menu-item index="/admin/roles">角色管理</el-menu-item>
-          <el-menu-item index="/admin/depts">部门管理</el-menu-item>
-          <el-menu-item index="/admin/sm9">SM9 密钥</el-menu-item>
-          <el-menu-item index="/admin/audit">审计日志</el-menu-item>
+          <el-menu-item v-if="authStore.hasPrivilege('user:manage')" index="/admin/users">用户管理</el-menu-item>
+          <el-menu-item v-if="authStore.hasPrivilege('role:manage')" index="/admin/roles">角色管理</el-menu-item>
+          <el-menu-item v-if="authStore.hasPrivilege('dept:manage')" index="/admin/depts">部门管理</el-menu-item>
+          <el-menu-item v-if="authStore.hasPrivilege('key:manage')" index="/admin/sm9">SM9 密钥</el-menu-item>
+          <el-menu-item v-if="authStore.hasPrivilege('audit:hash:verify') || authStore.hasPrivilege('audit:report:export')" index="/admin/audit">审计日志</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -114,6 +114,11 @@ const isCollapse = ref(false)
 const activeMenu = computed(() => route.path)
 const pageTitle = computed(() => route.meta.title as string | undefined)
 const securityColor = computed(() => getSecurityColor(authStore.user?.security ?? 0))
+const hasAdminAccess = computed(() => {
+  if (authStore.isAdmin()) return true
+  const adminPrivileges = ['user:manage', 'role:manage', 'dept:manage', 'key:manage', 'audit:hash:verify', 'audit:report:export']
+  return adminPrivileges.some(p => authStore.hasPrivilege(p))
+})
 
 function goHome() {
   router.push('/home')

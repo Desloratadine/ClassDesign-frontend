@@ -1,6 +1,27 @@
 import { SM3 } from 'gm-crypto'
 
 /**
+ * 解码 JWT payload，提取 scope 字段
+ * JWT 格式: header.payload.signature，payload 为 base64url 编码的 JSON
+ */
+export function decodeJwtScope(token: string): string {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return ''
+    // base64url -> base64
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    // 补齐 padding
+    while (base64.length % 4 !== 0) base64 += '='
+    const jsonStr = atob(base64)
+    const payload = JSON.parse(jsonStr)
+    // 取 scope 字段（数据库文档约定 privileges 作为 JWT scope 字段）
+    return payload.scope || payload.privileges || ''
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 使用 SM3 算法对密码进行哈希
  * @param plainText 明文密码
  * @returns SM3 哈希后的十六进制字符串

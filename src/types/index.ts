@@ -28,6 +28,8 @@ export interface UserInfo {
   role?: string
   /** 部门名称（登录响应返回） */
   dept?: string
+  /** 权限集合，空格分隔 */
+  privileges?: string
 }
 
 /** 登录请求 */
@@ -44,6 +46,7 @@ export interface LoginResponse {
   role: string
   dept: string
   token: string
+  privileges?: string
 }
 
 /** 部门 */

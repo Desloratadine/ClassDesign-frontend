@@ -55,6 +55,20 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { getRoles, addRole, updateRole, deleteRole } from '@/api/admin'
 import type { Role } from '@/types'
 
+/** 合法权限列表 */
+const VALID_PRIVILEGES = [
+  'file:upload',
+  'transfer:read',
+  'doc:receive',
+  'doc:download',
+  'user:manage',
+  'dept:manage',
+  'role:manage',
+  'key:manage',
+  'audit:hash:verify',
+  'audit:report:export',
+] as const
+
 const loading = ref(false)
 const submitting = ref(false)
 const dialogVisible = ref(false)
@@ -73,7 +87,22 @@ const form = reactive({
 
 const rules: FormRules = {
   roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
-  privileges: [{ required: true, message: '请输入权限值', trigger: 'blur' }],
+  privileges: [
+    { required: true, message: '请输入权限值', trigger: 'blur' },
+    {
+      validator: (_rule: any, value: string, callback: any) => {
+        if (!value) return callback()
+        const tokens = value.trim().split(/\s+/)
+        for (const t of tokens) {
+          if (!(VALID_PRIVILEGES as readonly string[]).includes(t)) {
+            return callback(new Error(`非法权限值: "${t}"，请使用空格分隔的合法权限`))
+          }
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
 }
 
 async function fetchData() {
