@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types'
 import { ElMessage } from 'element-plus'
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || '/api/v1',
+  baseURL: '/api/v1',
   timeout: 30000,
 })
 
