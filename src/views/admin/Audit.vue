@@ -50,15 +50,15 @@
         </el-table-column>
       </el-table>
       <div class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="page"
-          v-model:page-size="size"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          @size-change="fetchData"
-          @current-change="fetchData"
-        />
+        <span class="page-info">第 {{ page }} 页</span>
+        <div class="page-btns">
+          <el-button size="small" :disabled="page <= 1" @click="goPrev">
+            <el-icon><ArrowLeft /></el-icon>
+          </el-button>
+          <el-button size="small" :disabled="!hasMore" @click="goNext">
+            <el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </div>
       </div>
     </el-card>
 
@@ -83,13 +83,32 @@
         </el-descriptions>
       </div>
     </el-dialog>
+
+    <!-- 导出参数弹窗 -->
+    <el-dialog v-model="exportVisible" title="导出日志" width="400px">
+      <el-form :model="exportForm" label-width="80px">
+        <el-form-item label="起始 ID">
+          <el-input-number v-model="exportForm.fromId" :min="1" :max="exportMaxLogId" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="结束 ID">
+          <el-input-number v-model="exportForm.toId" :min="exportForm.fromId" :max="exportMaxLogId" style="width: 100%" />
+        </el-form-item>
+        <el-form-item>
+          <span class="text-muted">范围：1 ~ {{ exportMaxLogId }}</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="exportVisible = false">取消</el-button>
+        <el-button type="primary" :loading="exporting" @click="confirmExport">导出</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import { CircleCheckFilled, CircleCloseFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getAuditLogs, verifyAuditChain, downloadAuditLogs } from '@/api/audit'
 import type { AuditLog, AuditVerifyResult } from '@/types'
 
@@ -97,7 +116,7 @@ const loading = ref(false)
 const items = ref<AuditLog[]>([])
 const page = ref(1)
 const size = ref(10)
-const total = ref(0)
+const hasMore = ref(true)
 const dateRange = ref<[string, string] | null>(null)
 
 const filters = reactive({
@@ -108,11 +127,24 @@ const filters = reactive({
 const verifyVisible = ref(false)
 const verifyResult = ref<AuditVerifyResult | null>(null)
 
+// 导出
+const exportVisible = ref(false)
+const exporting = ref(false)
+const exportMaxLogId = ref(1)
+const exportForm = reactive({
+  fromId: 1,
+  toId: 1,
+})
+
+/** 翻页时保存当前页码，以便 API 返回空时回退 */
+let prevPageOnFetch = 1
+
 async function fetchData() {
   loading.value = true
   try {
     const fromTime = dateRange.value?.[0]
     const toTime = dateRange.value?.[1]
+    prevPageOnFetch = page.value
     const res = await getAuditLogs({
       page: page.value,
       size: size.value,
@@ -121,8 +153,15 @@ async function fetchData() {
       fromTime,
       toTime,
     })
-    items.value = res.items
-    total.value = res.items.length
+    if (res.items.length === 0) {
+      // 后端返回空 → 已到最后一页，回退页码并禁用下一页
+      page.value = Math.max(1, prevPageOnFetch - 1)
+      hasMore.value = false
+      // items 保持上一页数据不变，无需重新请求
+    } else {
+      items.value = res.items
+      hasMore.value = true
+    }
   } catch {
     // ignore
   } finally {
@@ -130,8 +169,23 @@ async function fetchData() {
   }
 }
 
+function goPrev() {
+  if (page.value <= 1) return
+  page.value--
+  // 上翻时恢复 hasMore（该页数据之前已成功加载过）
+  hasMore.value = true
+  fetchData()
+}
+
+function goNext() {
+  if (!hasMore.value) return
+  page.value++
+  fetchData()
+}
+
 function handleSearch() {
   page.value = 1
+  hasMore.value = true
   fetchData()
 }
 
@@ -140,12 +194,20 @@ function handleReset() {
   filters.action = ''
   dateRange.value = null
   page.value = 1
+  hasMore.value = true
   fetchData()
 }
 
 async function handleVerifyChain() {
   try {
-    verifyResult.value = await verifyAuditChain()
+    // 先获取最新一条日志，确定验证范围
+    const latestRes = await getAuditLogs({ page: 1, size: 1 })
+    if (latestRes.items.length === 0) {
+      ElMessage.warning('暂无日志可验证')
+      return
+    }
+    const maxLogId = latestRes.items[0].logId
+    verifyResult.value = await verifyAuditChain(1, maxLogId)
     verifyVisible.value = true
   } catch {
     // ignore
@@ -154,19 +216,41 @@ async function handleVerifyChain() {
 
 async function handleExport() {
   try {
-    // 导出全部日志（简化处理）
-    const fromId = 1
-    const toId = total.value > 0 ? items.value[items.value.length - 1].logId : 1
-    const blob = await downloadAuditLogs(fromId, toId)
+    // 获取最新一条日志的 ID 作为最大范围
+    const latestRes = await getAuditLogs({ page: 1, size: 1 })
+    if (latestRes.items.length === 0) {
+      ElMessage.warning('暂无日志可导出')
+      return
+    }
+    exportMaxLogId.value = latestRes.items[0].logId
+    exportForm.fromId = 1
+    exportForm.toId = exportMaxLogId.value
+    exportVisible.value = true
+  } catch {
+    // ignore
+  }
+}
+
+async function confirmExport() {
+  if (exportForm.fromId < 1 || exportForm.toId > exportMaxLogId.value || exportForm.fromId > exportForm.toId) {
+    ElMessage.warning('参数无效')
+    return
+  }
+  exporting.value = true
+  try {
+    const blob = await downloadAuditLogs(exportForm.fromId, exportForm.toId)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `audit_logs_${fromId}_${toId}.csv`
+    a.download = `audit_logs_${exportForm.fromId}_${exportForm.toId}.csv`
     a.click()
     URL.revokeObjectURL(url)
     ElMessage.success('导出成功')
+    exportVisible.value = false
   } catch {
     // ignore
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -183,6 +267,23 @@ onMounted(() => {
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   margin-top: 16px;
+  gap: 12px;
+}
+
+.page-info {
+  font-size: 13px;
+  color: #909399;
+}
+
+.page-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.text-muted {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

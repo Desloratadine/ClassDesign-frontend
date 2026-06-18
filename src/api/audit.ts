@@ -13,8 +13,8 @@ export async function getAuditLogs(params: {
   return res.data.data
 }
 
-export async function verifyAuditChain(): Promise<AuditVerifyResult> {
-  const res = await apiClient.post<ApiResponse<AuditVerifyResult>>('/audit/verify')
+export async function verifyAuditChain(fromId: number, toId: number): Promise<AuditVerifyResult> {
+  const res = await apiClient.post<ApiResponse<AuditVerifyResult>>('/audit/verify', { fromId, toId })
   return res.data.data
 }
 
